@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import Input from "./Input";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
-import { ToastContainer, toast } from "react-toastify";
+import { useRouter } from 'next/navigation';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const initialState = {
@@ -14,92 +13,74 @@ const initialState = {
 };
 
 const LoginForm = () => {
-  const [hydrated, setHydrated] = useState(false);
   const [state, setState] = useState(initialState);
   const [isLoading, setIsLoading] = useState(false);
-
   const router = useRouter();
 
   useEffect(() => {
-    setHydrated(true);
-  }, []);
+    const token = localStorage.getItem('token');
+    if (token) {
+      router.push('/');
+    }
+  }, [router]);
 
-  if (!hydrated) {
-    return null;
-  }
-
-  const handleChange = (event) => {
-    setState({ ...state, [event.target.name]: event.target.value });
+  const handleChange = (e) => {
+    setState({ ...state, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const { email, password } = state;
 
     if (!email || !password) {
-      toast.error("All fields are required", { autoClose: 2000 });
+      toast.error('All fields are required', { autoClose: 2000 });
       return;
     }
-
     const pattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
-
-    let hasError = false;
-
     if (!pattern.test(email)) {
-      toast.error("Please enter a valid email address.", { autoClose: 2000 });
-      hasError = true;
+      toast.error('Invalid email format', { autoClose: 2000 });
+      return;
     }
-
     if (password.length < 6) {
-      toast.error("Password must be at least 6 characters long.", { autoClose: 2000 });
-      hasError = true;
+      toast.error('Password must be at least 6 characters', { autoClose: 2000 });
+      return;
     }
-
-    if (hasError) return;
-
+  
+    setIsLoading(true);
+  
     try {
-      setIsLoading(true);
-
-      const res = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
+      // Sending login request
+      const response = await fetch('http://localhost:8080/users/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
-
-      if (res?.error) {
-        toast.error("Invalid Credentials", { autoClose: 2000 });
-        setIsLoading(false);
-        return;
-      }
-
+  
+      const data = await response.json();
       
-      setTimeout(() => {
-        toast.success("Login Successful", { autoClose: 2000 });
+      if (response.ok) {
+        localStorage.setItem('token', data.token); 
+        toast.success('Login Successful', { autoClose: 2000 });
 
-        setTimeout(() => {
-          router.push("/");
-        }, 2000); 
-      }, 0); 
+        setTimeout(() => router.push('/'), 2000);
+      } else {
+        toast.error(data.message || 'Invalid Credentials', { autoClose: 2000 });
+      }
     } catch (error) {
-      console.log(error);
-      toast.error("An unexpected error occurred", { autoClose: 2000 });
+      toast.error('Unexpected error occurred', { autoClose: 2000 });
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (
     <section className="container">
-      <form
-        onSubmit={handleSubmit}
-        className="border-2 border-paragraphColor rounded-lg max-w-sm mx-auto px-8 py-6 space-y-5"
-      >
+      <form onSubmit={handleSubmit} className="border-2 border-paragraphColor rounded-lg max-w-sm mx-auto px-8 py-6 space-y-5">
         <h2 className="text-center special-word">Login</h2>
 
         <Input
           label="Email"
-          type="text"
+          type="email"
           name="email"
           onChange={handleChange}
           value={state.email}
@@ -113,12 +94,12 @@ const LoginForm = () => {
         />
 
         <button type="submit" className="btn w-full">
-          {isLoading ? "Loading..." : "Login"}
+          {isLoading ? 'Loading...' : 'Login'}
         </button>
 
         <p className="text-center">
           Need an account?{" "}
-          <Link href={"/signup"} className="text-primaryColor">
+          <Link href="/signup" className="text-primaryColor">
             Sign Up
           </Link>
         </p>
